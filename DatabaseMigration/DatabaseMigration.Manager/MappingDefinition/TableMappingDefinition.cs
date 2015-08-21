@@ -10,13 +10,14 @@ using System.Threading.Tasks;
 
 namespace DatabaseMigration.Manager.MappingDefinition
 {
-    public class TableMappingDefinition
+    class TableMappingDefinition
     {
         #region Fields
 
         private Table _sourceTable;
         private Table _destinationTable;
         private List<FieldMappingDefinition> _fieldMappingDefinitions;
+        private List<FieldMappingInfo> _circleReferences;
 
         #endregion
 
@@ -37,6 +38,12 @@ namespace DatabaseMigration.Manager.MappingDefinition
         public List<FieldMappingDefinition> FieldMappingDefinitions
         {
             get { return _fieldMappingDefinitions ?? (_fieldMappingDefinitions = new List<FieldMappingDefinition>()); }
+        }
+
+        public List<FieldMappingInfo> CircleReferences 
+        {
+            get { return _circleReferences ?? (_circleReferences = new List<FieldMappingInfo>()); }
+            set { _circleReferences = value; } 
         }
 
         #endregion

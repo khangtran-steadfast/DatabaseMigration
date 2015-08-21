@@ -65,6 +65,28 @@ namespace DatabaseMigration.DatabaseAccess
             }
         }
 
+        //public List<Table> GetCircleReferences()
+        //{
+        //    var result = Tables.Where(t => t.GetCircleReferences()).ToList();
+        //    return result;
+        //}
+
+        public List<KeyValuePair<string, List<string>>> GetCircleReferences()
+        {
+            var result = new List<KeyValuePair<string, List<string>>>();
+
+            Tables.ForEach(t =>
+            {
+                var circleReferences = t.GetCircleReferences();
+                if(circleReferences.Any())
+                {
+                    result.Add(new KeyValuePair<string,List<string>>(t.Name, circleReferences));
+                }
+            });
+
+            return result;
+        }
+
         private void ReadTablesSchema(SqlConnection connection)
         {
             DataTable tableSchema = connection.GetSchema("Tables");
@@ -77,7 +99,7 @@ namespace DatabaseMigration.DatabaseAccess
 
                 if(type.Equals("BASE TABLE", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    Table table = new Table(catalog, schema, name, connection);
+                    Table table = new Table(catalog, schema, name, this, connection);
                     Tables.Add(table);
                 }
             }
@@ -110,7 +132,7 @@ namespace DatabaseMigration.DatabaseAccess
                     {
                         t.Fields.ForEach(f =>
                         {
-                            if(f.Name.Equals(columnName))
+                            if(t.Name.Equals(tableName) && f.Name.Equals(columnName))
                             {
                                 f.Type = FieldType.ForeignKey;
                                 f.Reference = new Reference(referenceName, tableName, columnName, referenceTableName, referenceColumnName);

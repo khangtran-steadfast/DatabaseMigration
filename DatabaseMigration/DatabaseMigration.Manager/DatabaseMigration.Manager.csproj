@@ -42,11 +42,14 @@
   <ItemGroup>
     <Compile Include="Constants\BatTemplates.cs" />
     <Compile Include="Constants\SqlScriptTemplates.cs" />
+    <Compile Include="FieldMappingInfo.cs" />
+    <Compile Include="Helpers\Utils.cs" />
     <Compile Include="MappingDefinition\FieldMappingDefinition.cs" />
     <Compile Include="MappingDefinition\TableMappingDefinition.cs" />
     <Compile Include="MigrationManager.cs" />
     <Compile Include="MigrationOptions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ScriptGenerator\BatGenerator.cs" />
     <Compile Include="ScriptGenerator\FieldScriptGenerator.cs" />
     <Compile Include="ScriptGenerator\TableScriptGenerator.cs" />
   </ItemGroup>

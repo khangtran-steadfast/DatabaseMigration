@@ -12,16 +12,32 @@ using System.Threading.Tasks;
 using StringInject;
 using DatabaseMigration.Manager.Constants;
 using DatabaseMigration.Infrastructure.Exceptions;
+using DatabaseMigration.Manager.Helpers;
 
 namespace DatabaseMigration.Manager
 {
     public class MigrationManager
     {
-        private int _processedTablesCount;
         private MigrationOptions _options;
+        private SourceDatabase _sourceDatabase;
+        private DestinationDatabase _destinationDatabase;
+        private List<TableMappingDefinition> _tableMappingDefinitions = new List<TableMappingDefinition>();
 
-        private SourceDatabase _sourceDatabase { get; set; }
-        private DestinationDatabase _destinationDatabase { get; set; }
+        /// <summary>
+        /// List tables to ignore references to
+        /// </summary>
+        /// <example>
+        /// B: {A} -> Ignore references from B to A
+        /// </example>
+        private Dictionary<string, List<Reference>> _ignoreCircleReferences = new Dictionary<string, List<Reference>>();
+
+        /// <summary>
+        /// List tables that need to update for circle references when do migration
+        /// </summary>
+        /// <example>
+        /// A: {B} -> Update B reference when do A migration
+        /// </example>
+        private Dictionary<string, List<Reference>> _tablesToUpdateCircleReferences = new Dictionary<string, List<Reference>>();
 
         public MigrationManager(string sourceConnectionString, string destinationConnectionString, MigrationOptions options)
         {
@@ -34,17 +50,18 @@ namespace DatabaseMigration.Manager
             _destinationDatabase.Initialize();
 
             _sourceDatabase.LearnDestinationDatabaseReference(_destinationDatabase, options.ExplicitTableMappings);
+
+            ConfigIgnoreCircleReferences();
         }
 
         public void GenerateMigrationScripts()
         {
-            bool hasExplicitMappings = _options != null && _options.ExplicitTableMappings != null;
             int count = 0;
-            int tablesCount = _destinationDatabase.Tables.Count;
             string outputPath = ConfigurationManager.AppSettings["SQLOutputFolder"];
             outputPath = Path.Combine(outputPath, DateTime.Now.ToString("ddMMyyyy"));
             List<string> scriptNames = new List<string>();
-            while (_processedTablesCount < tablesCount)
+            var temp = new List<string>();
+            while (count < _destinationDatabase.Tables.Count)
             {
                 Table destinationTable = null;
                 Table sourceTable = null;
@@ -53,42 +70,38 @@ namespace DatabaseMigration.Manager
                 {
                     // Get next table to migrate
                     destinationTable = GetNextTableCanMap();
-                    
+                    if (destinationTable == null)
+                        break;
+
                     // Check explicit mapping for source table - destination table
                     TableMappingDefinition mappingDefinition;
-                    if (hasExplicitMappings)
+                    TableMappingConfiguration mappingConfig = GetTableMappingConfig(destinationTable.Name);
+                    sourceTable = GetSourceTable(destinationTable.Name, mappingConfig);
+                    if(mappingConfig != null)
                     {
-                        var mappingConfig = _options.ExplicitTableMappings.SingleOrDefault(m => m.DestinationTableName.Equals(destinationTable.Name, StringComparison.InvariantCultureIgnoreCase));
-                        if (mappingConfig != null)
-                        {
-                            mapSourceTableName = mappingConfig.SourceTableName != null ? mappingConfig.SourceTableName : destinationTable.Name;
-                            sourceTable = _sourceDatabase.GetTable(mapSourceTableName);
-                            mappingDefinition = new TableMappingDefinition(sourceTable, destinationTable, mappingConfig.FieldMappings);
-                            mappingDefinition.IsIdentityInsert = mappingConfig.IsIdentityInsert;
-                        }
-                        else
-                        {
-                            mapSourceTableName = destinationTable.Name;
-                            sourceTable = _sourceDatabase.GetTable(mapSourceTableName);
-                            mappingDefinition = new TableMappingDefinition(sourceTable, destinationTable);
-                        }
+                        mappingDefinition = new TableMappingDefinition(sourceTable, destinationTable, mappingConfig.FieldMappings);
+                        mappingDefinition.IsIdentityInsert = mappingConfig.IsIdentityInsert;
                     }
                     else
                     {
-                        mapSourceTableName = destinationTable.Name;
-                        sourceTable = _sourceDatabase.GetTable(destinationTable.Name);
                         mappingDefinition = new TableMappingDefinition(sourceTable, destinationTable);
                     }
+
+                    // Retain mapping definition for later use
+                    _tableMappingDefinitions.Add(mappingDefinition);
+
+                    // Check circle references needed to update
+                    CheckCircleReferences(destinationTable, mappingDefinition);
 
                     // Generate script 
                     var scriptGenerator = new TableScriptGenerator(_sourceDatabase, mappingDefinition);
                     var script = scriptGenerator.GenerateScript();
                     var fileName = string.Format("{0}.{1}-{2}.sql", count++, sourceTable.Name, destinationTable.Name);
-                    SaveToFile(outputPath, fileName, script);
+                    Utils.SaveToFile(outputPath, fileName, script);
                     scriptNames.Add(fileName);
+                    temp.Add(destinationTable.Name);
 
                     destinationTable.IsMapped = true;
-                    _processedTablesCount++;
                 }
                 catch (MigrationException ex)
                 {
@@ -105,41 +118,98 @@ namespace DatabaseMigration.Manager
             // Generate script clear temp database
             var clearScript = string.Format(SqlScriptTemplates.TRUNCATE_TABLE, "[TempDatabase].dbo.[TrackingRecords]");
             var clearFileName = string.Format("{0}.Clear.sql", count);
-            SaveToFile(outputPath, clearFileName, clearScript);
+            Utils.SaveToFile(outputPath, clearFileName, clearScript);
             scriptNames.Add(clearFileName);
 
             // Generate bat file
-            GenerateBatFile(scriptNames, outputPath);
+            string batScript = BatGenerator.GenerateSqlExecuteScript(scriptNames, _options.ServerName, _options.InstanceName, outputPath);
+            Utils.SaveToFile(outputPath, "RunMigration.bat", batScript);
         }
 
-        private void GenerateBatFile(List<string> scriptNames, string outputPath)
+        private TableMappingConfiguration GetTableMappingConfig(string tableName)
         {
-            StringBuilder batBuilder = new StringBuilder();
+            return (_options != null && _options.ExplicitTableMappings != null)
+                    ? _options.ExplicitTableMappings.SingleOrDefault(m => m.DestinationTableName.Equals(tableName, StringComparison.InvariantCultureIgnoreCase))
+                    : null;
+        }
 
-            scriptNames.ForEach(s =>
+        private Table GetSourceTable(string destinationTableName, TableMappingConfiguration mappingConfig)
+        {
+            Table sourceTable = null;
+            if (mappingConfig != null)
             {
-                string scriptPath = Path.Combine(Path.GetFullPath(outputPath), s);
-                batBuilder.AppendLine(string.Format(BatTemplates.ECHO, s));
-                batBuilder.AppendLine(BatTemplates.EXECUTE_SQL.Inject(new
-                {
-                    ServerName = _options.ServerName,
-                    InstanceName = _options.InstanceName,
-                    ScriptPath = scriptPath
-                }));
-            });
+                string mapSourceTableName = mappingConfig.SourceTableName != null ? mappingConfig.SourceTableName : destinationTableName;
+                sourceTable = _sourceDatabase.GetTable(mapSourceTableName);
+            }
+            else
+            {
+                sourceTable = _sourceDatabase.GetTable(destinationTableName);
+            }
 
-            string content = string.Format(BatTemplates.BAT, batBuilder.ToString());
-            SaveToFile(outputPath, "RunMigration.bat", content);
+
+            return sourceTable;
         }
 
-        private void SaveToFile(string location, string fileName, string content)
+        #region Circle references
+
+        private void ConfigIgnoreCircleReferences()
         {
-            string filePath = Path.Combine(location, fileName);
+            //IngoreReferenceWhenGetMapOrder("branches", "branches");
+            //IngoreReferenceWhenGetMapOrder("general_insurance", "workbooks");
+            //IngoreReferenceWhenGetMapOrder("general_insurance", "policies");
+            ConfigIngoreReference(new Reference(null, "branches", "bra_parent_branch", "branches", "bra_id"));
+            ConfigIngoreReference(new Reference(null, "general_insurance", "genins_current_workbook", "workbooks", "wor_id"));
+            ConfigIngoreReference(new Reference(null, "general_insurance", "genins_current_policy", "policies", "pol_id"));
 
-            FileInfo file = new FileInfo(filePath);
-            file.Directory.Create();
-            File.WriteAllText(file.FullName, content);
+            //ConfigIngoreReference(new Reference(null, "Table_B", "Table_A_Id", "Table_A", "Id"));
         }
+
+        private void ConfigIngoreReference(Reference reference)
+        {
+            if (!_ignoreCircleReferences.ContainsKey(reference.OriginTableName))
+            {
+                _ignoreCircleReferences.Add(reference.OriginTableName, new List<Reference>());
+            }
+            _ignoreCircleReferences[reference.OriginTableName].Add(reference);
+
+            if (!_tablesToUpdateCircleReferences.ContainsKey(reference.ReferenceTableName))
+            {
+                _tablesToUpdateCircleReferences.Add(reference.ReferenceTableName, new List<Reference>());
+            }
+            _tablesToUpdateCircleReferences[reference.ReferenceTableName].Add(reference);
+        }
+
+        private void CheckCircleReferences(Table table, TableMappingDefinition mappingDefinition)
+        {
+            if (_tablesToUpdateCircleReferences.ContainsKey(table.Name))
+            {
+                _tablesToUpdateCircleReferences[table.Name].ForEach(r =>
+                {
+                    TableMappingDefinition temp = _tableMappingDefinitions.Single(d => d.DestinationTable.Name.Equals(r.OriginTableName));
+                    FieldMappingDefinition fieldMappingDefinition = temp.FieldMappingDefinitions.SingleOrDefault(f => f.DestinationField.Name.Equals(r.OriginFieldName));
+                    if(fieldMappingDefinition != null)
+                    {
+                        Table sourceTable = temp.SourceTable;
+                        Field sourceField = fieldMappingDefinition.SourceField;
+                        Table destinationTable = temp.DestinationTable;
+                        Field destinationField = fieldMappingDefinition.DestinationField;
+                        FieldMappingInfo info = new FieldMappingInfo
+                        {
+                            DestinationField = destinationField,
+                            DestinationTable = destinationTable,
+                            SourceField = sourceField,
+                            SourceTable = sourceTable
+                        };
+
+                        mappingDefinition.CircleReferences.Add(info);
+                    }
+                });
+            }
+        }
+
+        #endregion
+
+        #region Mapping Order
 
         private Table GetNextTableCanMap()
         {
@@ -156,9 +226,20 @@ namespace DatabaseMigration.Manager
             }
             else
             {
+                List<Reference> configIngoreReference = null;
+                if (this._ignoreCircleReferences.ContainsKey(table.Name))
+                {
+                    configIngoreReference = this._ignoreCircleReferences[table.Name];
+                }
+
                 var referenceFields = table.Fields.Where(f => f.Type.HasFlag(FieldType.ForeignKey)).ToList();
                 foreach (Field field in referenceFields)
                 {
+                    if (configIngoreReference != null && configIngoreReference.Any(r => r.ReferenceTableName.Equals(field.Reference.ReferenceTableName)))
+                    {
+                        continue;
+                    }
+
                     Table referenceTable = _destinationDatabase.GetTable(field.Reference.ReferenceTableName);
                     if (referenceTable.IsMapped == false)
                     {
@@ -170,5 +251,7 @@ namespace DatabaseMigration.Manager
 
             return result;
         }
+
+        #endregion
     }
 }

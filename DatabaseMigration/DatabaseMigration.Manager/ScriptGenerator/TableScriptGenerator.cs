@@ -125,17 +125,39 @@ namespace DatabaseMigration.Manager.ScriptGenerator
             }
 
             // Check Identity Insert
-            string result = "";
+            string identityMergeSql = "";
             if (isIdentityInsert)
             {
-                result += string.Format(SqlScriptTemplates.IDENTITY_INSERT_ON, destinationTable.FullName) + Environment.NewLine;
-                result += mergeSql + Environment.NewLine;
-                result += string.Format(SqlScriptTemplates.IDENTITY_INSERT_OFF, destinationTable.FullName);
+                identityMergeSql += string.Format(SqlScriptTemplates.IDENTITY_INSERT_ON, destinationTable.FullName) + Environment.NewLine;
+                identityMergeSql += mergeSql + Environment.NewLine;
+                identityMergeSql += string.Format(SqlScriptTemplates.IDENTITY_INSERT_OFF, destinationTable.FullName);
             }
             else
             {
-                result += mergeSql;
+                identityMergeSql += mergeSql;
             }
+
+            // Check circle references
+            string updateCircleSql = "";
+            if (_definition.CircleReferences.Any())
+            {
+                _definition.CircleReferences.ForEach(r =>
+                {
+                    updateCircleSql += NewLines(2) + SqlScriptTemplates.MERGE_UPDATE_CIRCLE_REFERENCES.Inject(new
+                    {
+                        TargetTableFullName = r.DestinationTable.FullName,
+                        TargetTableName = r.DestinationTable.Name,
+                        SourceTableFullName = r.SourceTable.FullName,
+                        TargetPKName = destinationPK.Name,
+                        SourcePKName = sourcePK.Name,
+                        TargetFKName = r.DestinationField.Name,
+                        TargetReferenceTableName = destinationTable.Name,
+                        SourceFKName = r.SourceField.Name
+                    });
+                });
+            }
+
+            var result = identityMergeSql + updateCircleSql;
             
             return result;
         }

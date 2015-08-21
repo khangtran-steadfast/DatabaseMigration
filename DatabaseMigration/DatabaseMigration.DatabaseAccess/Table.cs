@@ -16,6 +16,7 @@ namespace DatabaseMigration.DatabaseAccess
 
         // Dump query to get schema only
         private const string DUMP_QUERY = "SELECT * FROM {0} WHERE 0=1";
+        private Database _database;
         private string _name;
         private string _fullName;
         private List<Field> _fields;
@@ -43,8 +44,9 @@ namespace DatabaseMigration.DatabaseAccess
 
         #endregion
 
-        public Table(string catalog, string schema, string name, SqlConnection connection)
+        public Table(string catalog, string schema, string name, Database database, SqlConnection connection)
         {
+            _database = database;
             _name = name;
             _fullName = string.Format("[{0}].{1}.[{2}]", catalog, schema, name);
             Initialize(connection);
@@ -73,6 +75,12 @@ namespace DatabaseMigration.DatabaseAccess
             {
                 throw new MigrationException(MigrationExceptionCodes.DATABASE_ERROR_PK_NOT_FOUND);
             }
+        }
+
+        public List<Reference> GetReferences()
+        {
+            var result = Fields.Where(f => f.Type.HasFlag(FieldType.ForeignKey)).Select(f => f.Reference).ToList();
+            return result;
         }
 
         public Field GetCorrespondingField(string destinationFieldName, List<FieldMappingConfiguration> mappingConfigs)
@@ -184,5 +192,102 @@ namespace DatabaseMigration.DatabaseAccess
 
             return result;
         }
+
+        #region Detect circle reference
+
+        public List<string> GetCircleReferences()
+        {
+            return GetCircleReferences(new List<string>());
+        }
+
+        private List<string> GetCircleReferences(List<string> tracking)
+        {
+            //bool result = false;
+            var result = new List<string>();
+
+            // If we can not detect circle reference in this level
+            // Try to access deeper level (using recursion algorithm)
+            List<Reference> references = GetReferences();
+            List<string> listTableHasCheck = new List<string>();
+            listTableHasCheck.Add(Name);
+            foreach (Reference reference in references)
+            {
+                var response = GetCircleReferences(reference, listTableHasCheck, tracking);
+                if (response)
+                {
+                    // Add tracking if needed
+                    //if (tracking != null)
+                    //{
+                    //    tracking.Add(Name);
+                    //}
+                    tracking.ForEach(t => result.Add(t));
+                    break;
+                }
+            }
+
+            return result;
+        }
+
+        private bool GetCircleReferences(Reference reference, List<string> listTableHasCheck, List<string> tracking)
+        {
+            // Initialize result
+            bool result = false;
+
+            // Check current reference
+            if (reference.ReferenceTableName.Equals(Name))
+            {
+                if (tracking != null)
+                {
+                    tracking.Add(Name);
+                }
+                result = true;
+            }
+            else
+            {
+                // Try to get referenced table
+                // And go deeper (using recursion algorithm)
+                Table referencedTable = _database.GetTable(reference.ReferenceTableName);
+                List<Reference> listReference = referencedTable.GetReferences();
+                listTableHasCheck.Add(referencedTable.Name);
+                foreach (Reference childReference in listReference)
+                {
+                    // Check
+                    if (childReference.ReferenceTableName.Equals(Name))
+                    {
+                        // Add to tracking list if needed
+                        if (tracking != null)
+                        {
+                            tracking.Add(referencedTable.Name);
+                        }
+                        result = true;
+                        break;
+                    }
+
+                    // If referenced table is checked
+                    // We don't need to go further
+                    if (listTableHasCheck.Contains(childReference.ReferenceTableName))
+                    {
+                        continue;
+                    }
+
+                    // Else try to go deeper
+                    var response = this.GetCircleReferences(childReference, listTableHasCheck, tracking);
+                    if (response)
+                    {
+                        // Add to tracking list if needed
+                        //if (tracking != null)
+                        //{
+                        //    tracking.Add(referencedTable.Name);
+                        //}
+                        result = true;
+                        break;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        #endregion
     }
 }

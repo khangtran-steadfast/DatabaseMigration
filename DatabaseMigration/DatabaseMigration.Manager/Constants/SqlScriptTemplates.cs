@@ -46,7 +46,20 @@ ON ({RecordComparison})
 WHEN NOT MATCHED   
     THEN INSERT ({TargetInsertFields}) VALUES ({SourceInsertFields});";
 
-        public const string MERGE_RECORD_COMPARISON = @"t.[{TargetPKName}] = s.[{SourcePKName}]";
+        // Update circle references
+        public const string MERGE_UPDATE_CIRCLE_REFERENCES =
+@"MERGE {TargetTableFullName} AS t
+USING(
+     SELECT *
+     FROM {SourceTableFullName} s JOIN [TempDatabase].dbo.[TrackingRecords] tr ON s.[{SourcePKName}] = tr.[PKOldValue]
+     WHERE [TableName] = '{TargetTableName}'
+     ) AS s
+ON (t.[{TargetPKName}] = s.[PKNewValue])  
+WHEN MATCHED   
+    THEN UPDATE SET t.[{TargetFKName}] = (SELECT [PKNewValue] FROM [TempDatabase].dbo.[TrackingRecords] WHERE [TableName] = '{TargetReferenceTableName}' AND s.[{SourceFKName}] = [PKOldValue]);";
+
+        public const string FIELD_COMPARE_EQUAL = @"t.[{TargetPKName}] = s.[{SourcePKName}]";
+        public const string FIELD_COMPARE_LIKE = @"t.[{TargetPKName}] LIKE s.[{SourcePKName}]";
 
         public const string FK_SELECT = 
 @"          [New_{SourceFKName}] = (SELECT [PKNewValue] FROM [TempDatabase].dbo.[TrackingRecords] WHERE [TableName] = '{FKTable}' AND [{SourceFKName}] = [PKOldValue])";

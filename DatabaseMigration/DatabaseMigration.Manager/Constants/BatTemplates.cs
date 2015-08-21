@@ -8,9 +8,11 @@ namespace DatabaseMigration.Manager.Constants
 {
     public class BatTemplates
     {
-        public const string ECHO = @"echo {0}";
+        public const string ECHO_CONSOLE = @"echo {0}";
 
-        public const string EXECUTE_SQL = @"sqlcmd -S {ServerName}\{InstanceName} -i {ScriptPath}";
+        public const string ECHO_FILE = @"echo {0} >> {1}";
+
+        public const string EXECUTE_SQL = @"sqlcmd -S {ServerName}\{InstanceName} -i {ScriptPath} >> {OutputPath}";
 
         public const string BAT =
 @"echo off

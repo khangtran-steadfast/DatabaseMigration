@@ -55,7 +55,7 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                 {
                     if (sourceField.Type.HasFlag(FieldType.PrimaryKey) && destinationField.Type.HasFlag(FieldType.PrimaryKey))
                     {
-                        recordComparisonExpressions.Add(SqlScriptTemplates.MERGE_RECORD_COMPARISON.Inject(new
+                        recordComparisonExpressions.Add(SqlScriptTemplates.FIELD_COMPARE_EQUAL.Inject(new
                         {
                             TargetPKName = destinationField.Name,
                             SourcePKName = sourceField.Name
@@ -64,7 +64,9 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                 }
                 else
                 {
-                    recordComparisonExpressions.Add(SqlScriptTemplates.MERGE_RECORD_COMPARISON.Inject(new
+                    string compareTemplate = sourceField.DataType.Equals("String") ? SqlScriptTemplates.FIELD_COMPARE_LIKE 
+                                                                                   : SqlScriptTemplates.FIELD_COMPARE_EQUAL;
+                    recordComparisonExpressions.Add(compareTemplate.Inject(new
                     {
                         TargetPKName = destinationField.Name,
                         SourcePKName = sourceField.Name
