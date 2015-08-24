@@ -32,7 +32,12 @@ namespace DatabaseMigration.Manager.ScriptGenerator
             string blobsScript = "";
             if (hasBlobs)
             {
-                blobsScript = HandleBlobFields(blobMappings) + NewLines(2);
+                string temp;
+                bool blobInserted = HandleBlobFields(blobMappings, out temp);
+                if(blobInserted)
+                {
+                    blobsScript = temp + NewLines(2);
+                }
             }
 
             result = blobsScript + GenerateMergeScript(_definition.IsIdentityInsert);
@@ -52,9 +57,12 @@ namespace DatabaseMigration.Manager.ScriptGenerator
         /// </summary>
         /// <param name="blobMappings">The BLOB mappings.</param>
         /// <returns></returns>
-        private string HandleBlobFields(List<FieldMappingDefinition> blobMappings)
+        private bool HandleBlobFields(List<FieldMappingDefinition> blobMappings, out string blobScript)
         {
-            string insertScript = string.Format(SqlScriptTemplates.INSERT, "[TempDatabase].dbo.[BlobPointers]", "([PKValue], [BlobPointer])");
+            Console.WriteLine("Handling Blob for " + _definition.SourceTable.Name);
+
+            blobScript = "";
+            string insertScript = string.Format(SqlScriptTemplates.INSERT, "[TempDatabase].dbo.[BlobPointers]", "([PKValue], [BlobFieldName], [BlobPointer])");
             StringBuilder valuesScriptBuilder = new StringBuilder();
             blobMappings.ForEach(m =>
             {
@@ -62,14 +70,20 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                 blobs.ForEach(b =>
                 {
                     byte[] data = b.Value;
-                    string blobPointer = BlobConverter.ConvertToFile("XXX", "XXX", data);
+                    string blobPointer = BlobConverter.ConvertToFile(m.BlobCategory, m.BlobCategory, data);
 
-                    valuesScriptBuilder.Append(Environment.NewLine + string.Format("('{0}','{1}')", b.Key, blobPointer) + ",");
+                    valuesScriptBuilder.Append(Environment.NewLine + string.Format("('{0}','{1}','{2}')", b.Key, m.SourceField.Name, blobPointer) + ",");
                 });
             });
 
+            if(valuesScriptBuilder.Length == 0)
+            {
+                return false;
+            }
+
             string valuesScript = valuesScriptBuilder.ToString().Trim(',');
-            return insertScript + Environment.NewLine + string.Format(SqlScriptTemplates.INSERT_VALUES, valuesScript);
+            blobScript = insertScript + Environment.NewLine + string.Format(SqlScriptTemplates.INSERT_VALUES, valuesScript);
+            return true;
         }
 
         /// <summary>
@@ -90,6 +104,7 @@ namespace DatabaseMigration.Manager.ScriptGenerator
             string sourceInsertFields;
             string targetInsertFields;
             string recordComparison;
+            string sourceConditions = "";
             FieldScriptGenerator fieldScriptGenerator = new FieldScriptGenerator(_definition.FieldMappingDefinitions);
             fieldScriptGenerator.GeneratePartsForMergeTemplate(out targetInsertFields, out sourceInsertFields, out sourceSelectFields, out recordComparison, isIdentityInsert, hasPK);
 
@@ -105,6 +120,7 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                     TargetPKName = destinationPK.Name,
                     SourcePKName = sourcePK.Name,
                     SourcePKDataType = sourcePK.DataType,
+                    SourceConditions = sourceConditions,
                     SourceSelectFields = sourceSelectFields,
                     SourceInsertFields = sourceInsertFields,
                     TargetInsertFields = targetInsertFields,
@@ -117,6 +133,7 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                 {
                     TargetTableFullName = destinationTable.FullName,
                     SourceTableFullName = sourceTable.FullName,
+                    SourceConditions = sourceConditions,
                     SourceSelectFields = sourceSelectFields,
                     SourceInsertFields = sourceInsertFields,
                     TargetInsertFields = targetInsertFields,
@@ -143,13 +160,15 @@ namespace DatabaseMigration.Manager.ScriptGenerator
             {
                 _definition.CircleReferences.ForEach(r =>
                 {
+                    var sourceRefTablePK = r.SourceTable.GetPrimaryKey();
+                    var destinationRefTablePK = r.DestinationTable.GetPrimaryKey();
                     updateCircleSql += NewLines(2) + SqlScriptTemplates.MERGE_UPDATE_CIRCLE_REFERENCES.Inject(new
                     {
                         TargetTableFullName = r.DestinationTable.FullName,
                         TargetTableName = r.DestinationTable.Name,
                         SourceTableFullName = r.SourceTable.FullName,
-                        TargetPKName = destinationPK.Name,
-                        SourcePKName = sourcePK.Name,
+                        TargetPKName = destinationRefTablePK.Name,
+                        SourcePKName = sourceRefTablePK.Name,
                         TargetFKName = r.DestinationField.Name,
                         TargetReferenceTableName = destinationTable.Name,
                         SourceFKName = r.SourceField.Name

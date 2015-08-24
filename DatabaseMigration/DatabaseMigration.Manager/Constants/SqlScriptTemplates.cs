@@ -23,17 +23,36 @@ FROM {3}";
         public const string FIELD = "[{0}]";
         public const string NEW_FIELD = "[New_{0}]";
 
-        // Insert distinct using SQL Merge (just insert when source PK <> target PK)
+        /// <summary>
+        /// Insert distinct using SQL Merge (just insert when source PK <> target PK)
+        /// Need to create temp table to output tracking records first and then insert to real tracking records table because
+        /// of some strange error when output directly to real table
+        /// </summary>
         public const string MERGE_HAS_PK =
-@"MERGE {TargetTableFullName} AS t
+@"CREATE TABLE #Temp
+(
+	TableName nvarchar(50),
+	PKName nvarchar(50),
+	PKType nvarchar(50),
+	PKOldValue nvarchar(50),
+    PKNewValue nvarchar(50), 
+)
+
+MERGE {TargetTableFullName} AS t
 USING(
      SELECT {SourceSelectFields}
      FROM {SourceTableFullName}
+     {SourceConditions}
      ) AS s
 ON ({RecordComparison})  
 WHEN NOT MATCHED   
     THEN INSERT ({TargetInsertFields}) VALUES ({SourceInsertFields})
-OUTPUT '{SourceTableName}', '{SourcePKName}', '{SourcePKDataType}', s.[{SourcePKName}], INSERTED.[{TargetPKName}] INTO [TempDatabase].dbo.TrackingRecords;";
+OUTPUT '{SourceTableName}', '{SourcePKName}', '{SourcePKDataType}', s.[{SourcePKName}], INSERTED.[{TargetPKName}] INTO #Temp;
+
+INSERT INTO [TempDatabase].dbo.TrackingRecords
+SELECT * FROM #Temp
+
+DROP TABLE #Temp";
 
         // Insert distinct using SQL Merge (just insert when source records <> target records)
         public const string MERGE_NO_PK =
@@ -41,6 +60,7 @@ OUTPUT '{SourceTableName}', '{SourcePKName}', '{SourcePKDataType}', s.[{SourcePK
 USING(
      SELECT {SourceSelectFields}
      FROM {SourceTableFullName}
+     {SourceConditions}
      ) AS s
 ON ({RecordComparison})  
 WHEN NOT MATCHED   
@@ -60,11 +80,12 @@ WHEN MATCHED
 
         public const string FIELD_COMPARE_EQUAL = @"t.[{TargetPKName}] = s.[{SourcePKName}]";
         public const string FIELD_COMPARE_LIKE = @"t.[{TargetPKName}] LIKE s.[{SourcePKName}]";
+        public const string FIELD_NOT_NULL = @"{0} <> NULL";
 
         public const string FK_SELECT = 
 @"          [New_{SourceFKName}] = (SELECT [PKNewValue] FROM [TempDatabase].dbo.[TrackingRecords] WHERE [TableName] = '{FKTable}' AND [{SourceFKName}] = [PKOldValue])";
 
         public const string BLOB_SELECT =
-@"          [New_{SourceBlobFieldName}] = (SELECT [BlobPointer] FROM [TempDatabase].dbo.[BlobPointers] WHERE [{SourcePKName}] = [PKValue])";
+@"          [New_{SourceBlobFieldName}] = (SELECT [BlobPointer] FROM [TempDatabase].dbo.[BlobPointers] WHERE '{SourceBlobFieldName}' = [BlobFieldName] AND [{SourcePKName}] = [PKValue])";
     }
 }

@@ -18,5 +18,8 @@ namespace DatabaseMigration.Infrastructure.Configurations
 
         [XmlAttribute]
         public FieldMappingType Type { get; set; }
+
+        [XmlAttribute]
+        public string BlobCategory { get; set; }
     }
 }

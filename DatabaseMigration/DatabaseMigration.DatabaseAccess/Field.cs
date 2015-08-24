@@ -12,6 +12,7 @@ namespace DatabaseMigration.DatabaseAccess
         public string DataType { get; set; }
         public FieldType Type { get; set; }
         public Reference Reference { get; set; }
+        public bool AllowNull { get; set; }
 
         public Field(string name, string dataType)
         {

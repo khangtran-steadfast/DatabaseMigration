@@ -38,7 +38,7 @@ namespace DatabaseMigration.DatabaseAccess
                     foreach (DataRow row in dataTable.Rows)
                     {
                         int id = (int)row[pkField.Name];
-                        byte[] blob = (byte[])row[blobField.Name];
+                        byte[] blob = row[blobField.Name] == DBNull.Value ? null : (byte[])row[blobField.Name];
                         result.Add(new KeyValuePair<int, byte[]>(id, blob));
                     }
                 }

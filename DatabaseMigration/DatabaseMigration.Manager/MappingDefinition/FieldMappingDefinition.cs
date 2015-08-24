@@ -28,6 +28,8 @@ namespace DatabaseMigration.Manager.MappingDefinition
             get { return _type; }
         }
 
+        public string BlobCategory { get; set; }
+
         public FieldMappingDefinition(Field sourceField, Field destinationField, FieldMappingType type = FieldMappingType.Simple)
         {
             _sourceField = sourceField;

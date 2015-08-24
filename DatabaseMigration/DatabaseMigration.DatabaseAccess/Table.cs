@@ -129,14 +129,19 @@ namespace DatabaseMigration.DatabaseAccess
                     Field field = new Field(column.ColumnName, column.DataType.Name);
                     if (primaryKeys.Contains(field.Name))
                     {
-                        field.Type = FieldType.PrimaryKey;
+                        field.Type |= FieldType.PrimaryKey;
                         if (column.AutoIncrement)
                             field.Type |= FieldType.Identity;
                     }
 
                     if(uniqueFields.Contains(field.Name))
                     {
-                        field.Type = FieldType.Unique;
+                        field.Type |= FieldType.Unique;
+                    }
+
+                    if(column.AllowDBNull)
+                    {
+                        field.AllowNull = true;
                     }
 
                     Fields.Add(field);

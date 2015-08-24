@@ -21,7 +21,7 @@ namespace DatabaseMigration.Manager.ScriptGenerator
         }
 
         /// <summary>
-        /// Generates neccessary parts for SqlScriptTemplates.MERGE_HAS_PK template
+        /// Generates neccessary parts for SqlScriptTemplates.MERGE template
         /// </summary>
         /// <param name="isIdentityInsert">if set to <c>true</c> [is identity insert].</param>
         public void GeneratePartsForMergeTemplate(out string targetInsertFields, out string sourceInsertFields, out string sourceSelectFields, out string recordComparison, bool isIdentityInsert, bool hasPK)
@@ -38,13 +38,13 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                  * */
                 if (isIdentityInsert)
                 {
-                    Generate(definition, targetInsertExpressions, sourceInsertExpressions, sourceSelectExpressions, hasPK);
+                    Generate(definition, targetInsertExpressions, sourceInsertExpressions, sourceSelectExpressions);
                 }
                 else
                 {
                     if (!definition.DestinationField.Type.HasFlag(FieldType.Identity))
                     {
-                        Generate(definition, targetInsertExpressions, sourceInsertExpressions, sourceSelectExpressions, hasPK);
+                        Generate(definition, targetInsertExpressions, sourceInsertExpressions, sourceSelectExpressions);
                     }
                 }
 
@@ -80,12 +80,12 @@ namespace DatabaseMigration.Manager.ScriptGenerator
             recordComparison = recordComparisonExpressions.Aggregate((x, y) => x + " AND " + y);
         }
 
-        private void Generate(FieldMappingDefinition definition, List<string> targetInsertExpressions, List<string> sourceInsertExpressions, List<string> sourceSelectExpressions, bool hasPK)
+        private void Generate(FieldMappingDefinition definition, List<string> targetInsertExpressions, List<string> sourceInsertExpressions, List<string> sourceSelectExpressions)
         {
             Field sourceField = definition.SourceField;
             Field destinationField = definition.DestinationField;
 
-            // SourceSelectFields, SourceInsertFields
+            // SourceSelectFields, SourceInsertFields, SourceConditions
             if (destinationField.Type.HasFlag(FieldType.ForeignKey))
             {
                 sourceSelectExpressions.Add(SqlScriptTemplates.FK_SELECT.Inject(new
@@ -94,7 +94,8 @@ namespace DatabaseMigration.Manager.ScriptGenerator
                     SourceFKName = sourceField.Name
                 }));
 
-                sourceInsertExpressions.Add(string.Format(SqlScriptTemplates.NEW_FIELD, sourceField.Name));
+                string newFieldName = string.Format(SqlScriptTemplates.NEW_FIELD, sourceField.Name);
+                sourceInsertExpressions.Add(newFieldName);
             }
             else if (definition.Type == FieldMappingType.BlobToBlobPointer)
             {

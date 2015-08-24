@@ -110,16 +110,16 @@ namespace DatabaseMigration.Manager
                         destinationTable.IsMapped = true;
 
                         // TODO: write log
-                        Console.WriteLine(mapSourceTableName + " -> " + destinationTable.Name);
+                        Console.WriteLine(destinationTable.Name + " not mapped");
                     }
                 }
             }
 
             // Generate script clear temp database
-            var clearScript = string.Format(SqlScriptTemplates.TRUNCATE_TABLE, "[TempDatabase].dbo.[TrackingRecords]");
-            var clearFileName = string.Format("{0}.Clear.sql", count);
-            Utils.SaveToFile(outputPath, clearFileName, clearScript);
-            scriptNames.Add(clearFileName);
+            //var clearScript = string.Format(SqlScriptTemplates.TRUNCATE_TABLE, "[TempDatabase].dbo.[TrackingRecords]");
+            //var clearFileName = string.Format("{0}.Clear.sql", count);
+            //Utils.SaveToFile(outputPath, clearFileName, clearScript);
+            //scriptNames.Add(clearFileName);
 
             // Generate bat file
             string batScript = BatGenerator.GenerateSqlExecuteScript(scriptNames, _options.ServerName, _options.InstanceName, outputPath);

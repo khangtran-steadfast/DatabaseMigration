@@ -48,6 +48,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BlobStore\BlobStoreCategories.cs" />
     <Compile Include="BlobStore\BlobStoreProvider.cs" />
     <Compile Include="BlobStore\FileSystemBlobStoreProvider.cs" />
     <Compile Include="Configurations\FieldMappingConfiguration.cs" />
