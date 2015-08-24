@@ -65,13 +65,14 @@ namespace DatabaseMigration.Manager
             {
                 Table destinationTable = null;
                 Table sourceTable = null;
-                string mapSourceTableName = null;
                 try
                 {
                     // Get next table to migrate
                     destinationTable = GetNextTableCanMap();
                     if (destinationTable == null)
                         break;
+
+                    Console.WriteLine("Processing " + destinationTable.Name);
 
                     // Check explicit mapping for source table - destination table
                     TableMappingDefinition mappingDefinition;
@@ -116,10 +117,10 @@ namespace DatabaseMigration.Manager
             }
 
             // Generate script clear temp database
-            //var clearScript = string.Format(SqlScriptTemplates.TRUNCATE_TABLE, "[TempDatabase].dbo.[TrackingRecords]");
-            //var clearFileName = string.Format("{0}.Clear.sql", count);
-            //Utils.SaveToFile(outputPath, clearFileName, clearScript);
-            //scriptNames.Add(clearFileName);
+            var clearScript = string.Format(SqlScriptTemplates.TRUNCATE_TABLE, "[TempDatabase].dbo.[TrackingRecords]");
+            var clearFileName = string.Format("{0}.Clear.sql", count);
+            Utils.SaveToFile(outputPath, clearFileName, clearScript);
+            scriptNames.Add(clearFileName);
 
             // Generate bat file
             string batScript = BatGenerator.GenerateSqlExecuteScript(scriptNames, _options.ServerName, _options.InstanceName, outputPath);

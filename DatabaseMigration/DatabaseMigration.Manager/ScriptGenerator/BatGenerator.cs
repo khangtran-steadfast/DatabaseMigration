@@ -15,19 +15,23 @@ namespace DatabaseMigration.Manager.ScriptGenerator
         {
             StringBuilder batBuilder = new StringBuilder();
 
-            scriptNames.ForEach(s =>
+            batBuilder.AppendLine(string.Format(BatTemplates.DELETE_FILE, @"Migration_Output.txt"));
+
+            for (int i = 0; i < scriptNames.Count; i++)
             {
-                string scriptPath = Path.Combine(Path.GetFullPath(outputPath), s);
-                batBuilder.AppendLine(string.Format(BatTemplates.ECHO_CONSOLE, s));
-                batBuilder.AppendLine(string.Format(BatTemplates.ECHO_FILE, s, @"C:\Output.txt"));
+                string scriptName = scriptNames[i];
+
+                string scriptPath = Path.Combine(Path.GetFullPath(outputPath), scriptName);
+                batBuilder.AppendLine(string.Format(BatTemplates.ECHO_CONSOLE, scriptName));
+                batBuilder.AppendLine(string.Format(BatTemplates.ECHO_FILE_APPEND, scriptName, @"Migration_Output.txt"));
                 batBuilder.AppendLine(BatTemplates.EXECUTE_SQL.Inject(new
                 {
                     ServerName = serverName,
                     InstanceName = instanceName,
-                    ScriptPath = scriptPath,
-                    OutputPath = @"C:\Output.txt"
+                    ScriptPath = scriptName,
+                    OutputPath = @"Migration_Output.txt"
                 }));
-            });
+            }
 
             string content = string.Format(BatTemplates.BAT, batBuilder.ToString());
             return content;
