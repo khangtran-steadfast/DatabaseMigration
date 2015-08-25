@@ -78,6 +78,7 @@ ON (t.[{TargetPKName}] = s.[PKNewValue])
 WHEN MATCHED   
     THEN UPDATE SET t.[{TargetFKName}] = (SELECT [PKNewValue] FROM [TempDatabase].dbo.[TrackingRecords] WHERE [TableName] = '{TargetReferenceTableName}' AND s.[{SourceFKName}] = [PKOldValue]);";
 
+        public const string FIELD_NULL_DEFAULT_VALUE = @"ISNULL([{FieldName}],{Value})";
         public const string FIELD_COMPARE_EQUAL = @"t.[{TargetPKName}] = s.[{SourcePKName}]";
         public const string FIELD_COMPARE_LIKE = @"t.[{TargetPKName}] LIKE s.[{SourcePKName}]";
         public const string FIELD_NOT_NULL = @"{0} <> NULL";

@@ -64,7 +64,7 @@ namespace DatabaseMigration.Manager.MappingDefinition
                         if (mappingConfig != null)
                         {
                             var sourceField = sourceTable.GetField(mappingConfig.SourceFieldName);
-                            FieldMappingDefinitions.Add(new FieldMappingDefinition(sourceField, f, mappingConfig.Type) { BlobCategory = mappingConfig.BlobCategory });
+                            FieldMappingDefinitions.Add(new FieldMappingDefinition(sourceField, f, mappingConfig.Type) { BlobCategory = mappingConfig.BlobCategory, ForceValue = mappingConfig.ForceValue });
                         }
                         else
                         {

@@ -21,5 +21,8 @@ namespace DatabaseMigration.Infrastructure.Configurations
 
         [XmlAttribute]
         public string BlobCategory { get; set; }
+
+        [XmlAttribute]
+        public string ForceValue { get; set; }
     }
 }

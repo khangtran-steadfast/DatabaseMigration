@@ -109,7 +109,33 @@ namespace DatabaseMigration.Manager.ScriptGenerator
             }
             else
             {
-                sourceInsertExpressions.Add(string.Format(SqlScriptTemplates.FIELD, sourceField.Name));
+                string sourceInsertExpression;
+                if (!string.IsNullOrEmpty(definition.ForceValue))
+                {
+                    sourceInsertExpression = string.Format("'{0}'", definition.ForceValue);
+                }
+                else if (sourceField.Name.Contains("created_who"))
+                {
+                    sourceInsertExpression = SqlScriptTemplates.FIELD_NULL_DEFAULT_VALUE.Inject(new
+                    {
+                        FieldName = sourceField.Name,
+                        Value = "'Database Migration Tool'"
+                    });
+                }
+                else if (sourceField.Name.Contains("created_when"))
+                {
+                    sourceInsertExpression = SqlScriptTemplates.FIELD_NULL_DEFAULT_VALUE.Inject(new
+                    {
+                        FieldName = sourceField.Name,
+                        Value = "GETDATE()"
+                    });
+                }
+                else
+                {
+                    sourceInsertExpression = string.Format(SqlScriptTemplates.FIELD, sourceField.Name);
+                }
+
+                sourceInsertExpressions.Add(sourceInsertExpression);
             }
 
             // TargetInsertFields

@@ -30,6 +30,8 @@ namespace DatabaseMigration.Manager.MappingDefinition
 
         public string BlobCategory { get; set; }
 
+        public string ForceValue { get; set; }
+
         public FieldMappingDefinition(Field sourceField, Field destinationField, FieldMappingType type = FieldMappingType.Simple)
         {
             _sourceField = sourceField;
