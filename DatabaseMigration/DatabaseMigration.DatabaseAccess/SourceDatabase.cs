@@ -11,7 +11,7 @@ using DatabaseMigration.Infrastructure.Exceptions;
 
 namespace DatabaseMigration.DatabaseAccess
 {
-    public class SourceDatabase : Database
+    public class SourceDatabase : Database<SourceTable>
     {
         public SourceDatabase(string connectionString) : base(connectionString)
         {
@@ -26,7 +26,7 @@ namespace DatabaseMigration.DatabaseAccess
             {
                 connection.Open();
 
-                Table table = GetTable(tableName);
+                SourceTable table = GetTable(tableName);
                 Field pkField = table.GetPrimaryKey();
                 Field blobField = table.GetField(fieldName);
 
@@ -54,7 +54,7 @@ namespace DatabaseMigration.DatabaseAccess
                 try
                 {
                     List<FieldMappingConfiguration> fieldMappingConfigs;
-                    Table sourceTable = GetCorrespondingTable(t.Name, tableMappingConfigs, out fieldMappingConfigs);
+                    SourceTable sourceTable = GetCorrespondingTable(t.Name, tableMappingConfigs, out fieldMappingConfigs);
                     t.Fields.ForEach(f =>
                     {
                         if (f.Type == FieldType.ForeignKey)
@@ -64,7 +64,7 @@ namespace DatabaseMigration.DatabaseAccess
                             if (sourceField.Reference == null)
                             {
                                 List<FieldMappingConfiguration> temp;
-                                Table referenceTable = GetCorrespondingTable(destinationFieldReference.ReferenceTableName, tableMappingConfigs, out temp);
+                                SourceTable referenceTable = GetCorrespondingTable(destinationFieldReference.ReferenceTableName, tableMappingConfigs, out temp);
                                 Field referenceField = referenceTable.GetCorrespondingField(destinationFieldReference.ReferenceFieldName, temp);
                                 sourceField.Reference = new Reference(null, sourceTable.Name, sourceField.Name, referenceTable.Name, referenceField.Name);
                                 sourceField.Type = FieldType.ForeignKey;
@@ -87,10 +87,10 @@ namespace DatabaseMigration.DatabaseAccess
             });
         }
 
-        private Table GetCorrespondingTable(string destinationTableName, List<TableMappingConfiguration> mappingConfigs, out List<FieldMappingConfiguration> fieldMappingConfigs)
+        private SourceTable GetCorrespondingTable(string destinationTableName, List<TableMappingConfiguration> mappingConfigs, out List<FieldMappingConfiguration> fieldMappingConfigs)
         {
             fieldMappingConfigs = null;
-            Table sourceTable;
+            SourceTable sourceTable;
             if (mappingConfigs != null)
             {
                 var mappingConfig = mappingConfigs.SingleOrDefault(m => m.DestinationTableName.Equals(destinationTableName, StringComparison.InvariantCultureIgnoreCase));

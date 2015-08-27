@@ -63,8 +63,8 @@ namespace DatabaseMigration.Manager
             var temp = new List<string>();
             while (count < _destinationDatabase.Tables.Count)
             {
-                Table destinationTable = null;
-                Table sourceTable = null;
+                DestinationTable destinationTable = null;
+                SourceTable sourceTable = null;
                 try
                 {
                     // Get next table to migrate
@@ -134,9 +134,9 @@ namespace DatabaseMigration.Manager
                     : null;
         }
 
-        private Table GetSourceTable(string destinationTableName, TableMappingConfiguration mappingConfig)
+        private SourceTable GetSourceTable(string destinationTableName, TableMappingConfiguration mappingConfig)
         {
-            Table sourceTable = null;
+            SourceTable sourceTable = null;
             if (mappingConfig != null)
             {
                 string mapSourceTableName = mappingConfig.SourceTableName != null ? mappingConfig.SourceTableName : destinationTableName;
@@ -190,9 +190,9 @@ namespace DatabaseMigration.Manager
                     FieldMappingDefinition fieldMappingDefinition = temp.FieldMappingDefinitions.SingleOrDefault(f => f.DestinationField.Name.Equals(r.OriginFieldName));
                     if(fieldMappingDefinition != null)
                     {
-                        Table sourceTable = temp.SourceTable;
+                        SourceTable sourceTable = temp.SourceTable;
                         Field sourceField = fieldMappingDefinition.SourceField;
-                        Table destinationTable = temp.DestinationTable;
+                        DestinationTable destinationTable = temp.DestinationTable;
                         Field destinationField = fieldMappingDefinition.DestinationField;
                         FieldMappingInfo info = new FieldMappingInfo
                         {
@@ -212,13 +212,13 @@ namespace DatabaseMigration.Manager
 
         #region Mapping Order
 
-        private Table GetNextTableCanMap()
+        private DestinationTable GetNextTableCanMap()
         {
             var result = _destinationDatabase.Tables.FirstOrDefault(t => CanMap(t));
             return result;
         }
 
-        private bool CanMap(Table table)
+        private bool CanMap(DestinationTable table)
         {
             bool result = true;
             if (table.IsMapped)
@@ -241,7 +241,7 @@ namespace DatabaseMigration.Manager
                         continue;
                     }
 
-                    Table referenceTable = _destinationDatabase.GetTable(field.Reference.ReferenceTableName);
+                    DestinationTable referenceTable = _destinationDatabase.GetTable(field.Reference.ReferenceTableName);
                     if (referenceTable.IsMapped == false)
                     {
                         result = false;

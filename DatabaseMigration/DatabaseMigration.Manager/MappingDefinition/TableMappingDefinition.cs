@@ -14,8 +14,8 @@ namespace DatabaseMigration.Manager.MappingDefinition
     {
         #region Fields
 
-        private Table _sourceTable;
-        private Table _destinationTable;
+        private SourceTable _sourceTable;
+        private DestinationTable _destinationTable;
         private List<FieldMappingDefinition> _fieldMappingDefinitions;
         private List<FieldMappingInfo> _circleReferences;
 
@@ -25,12 +25,12 @@ namespace DatabaseMigration.Manager.MappingDefinition
 
         public bool IsIdentityInsert { get; set; }
 
-        public Table SourceTable
+        public SourceTable SourceTable
         {
             get { return _sourceTable; }
         }
 
-        public Table DestinationTable
+        public DestinationTable DestinationTable
         {
             get { return _destinationTable; }
         }
@@ -48,7 +48,7 @@ namespace DatabaseMigration.Manager.MappingDefinition
 
         #endregion
 
-        public TableMappingDefinition(Table sourceTable, Table destinationTable, List<FieldMappingConfiguration> explicitMappings = null)
+        public TableMappingDefinition(SourceTable sourceTable, DestinationTable destinationTable, List<FieldMappingConfiguration> explicitMappings = null)
         {
             _sourceTable = sourceTable;
             _destinationTable = destinationTable;

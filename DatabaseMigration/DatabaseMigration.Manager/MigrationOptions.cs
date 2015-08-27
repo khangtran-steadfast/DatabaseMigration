@@ -17,12 +17,14 @@ namespace DatabaseMigration.Manager
         [XmlElement]
         public string InstanceName { get; set; }
 
+        [XmlElement]
+        public string Username { get; set; }
+
+        [XmlElement]
+        public string Password { get; set; }
+
         [XmlArray("ExplicitTableMappings")]
         [XmlArrayItem("TableMapping", typeof(TableMappingConfiguration))]
         public List<TableMappingConfiguration> ExplicitTableMappings { get; set; }
-
-        //[XmlArray("ExplicitSourceDatabaseReferences")]
-        //[XmlArrayItem("Reference", typeof(ReferenceConfiguration))]
-        //public List<ReferenceConfiguration> ExplicitSourceDatabaseReferences { get; set; }
     }
 }

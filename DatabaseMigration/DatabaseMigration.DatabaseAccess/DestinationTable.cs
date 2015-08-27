@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace DatabaseMigration.DatabaseAccess
 {
-    public class DestinationDatabase : Database<DestinationTable>
+    public class DestinationTable : Table
     {
-        public DestinationDatabase(string connectionString) : base(connectionString)
-        {
-
-        }
+        public bool IsMapped { get; set; }
     }
 }

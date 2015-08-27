@@ -1,6 +1,8 @@
 <Configurations>
   <ServerName>.</ServerName>
-  <InstanceName></InstanceName>
+  <InstanceName>DEV</InstanceName>
+  <Username>sa</Username>
+  <Password>123456789</Password>
 
   <!--<ExplicitTableMappings>
     <TableMapping SourceTable="Table_A" DestinationTable="Table_A" IsIdentityInsert="true">
@@ -97,7 +99,7 @@
       </FieldMappings>
     </TableMapping>
 
-    <TableMapping SourceTable="ledgers" DestinationTable="gl_ledgers">
+    <TableMapping SourceTable="ledgers" DestinationTable="gl_ledgers" IsIdentityInsert="true">
     </TableMapping>
     <TableMapping SourceTable="CCFeeTransactions" DestinationTable="CCFeeTransactions" IsIdentityInsert="true">
     </TableMapping>

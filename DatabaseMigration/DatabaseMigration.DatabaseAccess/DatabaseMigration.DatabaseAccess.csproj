@@ -41,10 +41,12 @@
   <ItemGroup>
     <Compile Include="Database.cs" />
     <Compile Include="DestinationDatabase.cs" />
+    <Compile Include="DestinationTable.cs" />
     <Compile Include="Field.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Reference.cs" />
     <Compile Include="SourceDatabase.cs" />
+    <Compile Include="SourceTable.cs" />
     <Compile Include="Table.cs" />
   </ItemGroup>
   <ItemGroup>

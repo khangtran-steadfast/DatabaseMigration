@@ -93,8 +93,8 @@ namespace DatabaseMigration.Manager.ScriptGenerator
         /// <returns></returns>
         private string GenerateMergeScript(bool isIdentityInsert)
         {
-            Table sourceTable = _definition.SourceTable;
-            Table destinationTable = _definition.DestinationTable;
+            SourceTable sourceTable = _definition.SourceTable;
+            DestinationTable destinationTable = _definition.DestinationTable;
             Field sourcePK = sourceTable.Fields.FirstOrDefault(x => x.Type.HasFlag(FieldType.PrimaryKey));
             Field destinationPK = destinationTable.Fields.FirstOrDefault(x => x.Type.HasFlag(FieldType.PrimaryKey));
             bool hasPK = sourcePK != null && destinationPK != null;

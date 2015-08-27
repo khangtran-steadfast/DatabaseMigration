@@ -9,8 +9,8 @@ namespace DatabaseMigration.Manager
 {
     class FieldMappingInfo
     {
-        public Table SourceTable { get; set; }
-        public Table DestinationTable { get; set; }
+        public SourceTable SourceTable { get; set; }
+        public DestinationTable DestinationTable { get; set; }
         public Field SourceField { get; set; }
         public Field DestinationField { get; set; }
     }

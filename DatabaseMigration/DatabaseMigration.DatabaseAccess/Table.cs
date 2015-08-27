@@ -10,47 +10,38 @@ using System.Threading.Tasks;
 
 namespace DatabaseMigration.DatabaseAccess
 {
-    public class Table
+    public abstract class Table
     {
         #region Fields
 
         // Dump query to get schema only
         private const string DUMP_QUERY = "SELECT * FROM {0} WHERE 0=1";
-        private Database _database;
-        private string _name;
-        private string _fullName;
         private List<Field> _fields;
 
         #endregion
 
         #region Properties
-        
-        public string Name
-        {
-            get { return _name; }
-        }
+
+        public string DatabaseName { get; set; }
+
+        public string Schema { get; set; }
+
+        public string Name { get; set; }
         
         public string FullName
         {
-            get { return _fullName; }
+            get
+            {
+                return string.Format("[{0}].{1}.[{2}]", DatabaseName, Schema, Name);
+            }
         }
 
-        public bool IsMapped { get; set; }
-        
         public List<Field> Fields
         {
             get { return _fields ?? (_fields = new List<Field>()); }
         }
 
         #endregion
-
-        public Table(string catalog, string schema, string name, Database database, SqlConnection connection)
-        {
-            _database = database;
-            _name = name;
-            _fullName = string.Format("[{0}].{1}.[{2}]", catalog, schema, name);
-            Initialize(connection);
-        }
 
         public Field GetField(string fieldName)
         {
@@ -83,46 +74,20 @@ namespace DatabaseMigration.DatabaseAccess
             return result;
         }
 
-        public Field GetCorrespondingField(string destinationFieldName, List<FieldMappingConfiguration> mappingConfigs)
-        {
-            Field sourceField;
-            if (mappingConfigs != null)
-            {
-                var mappingConfig = mappingConfigs.SingleOrDefault(m => m.DestinationFieldName.Equals(destinationFieldName, StringComparison.InvariantCultureIgnoreCase));
-                if (mappingConfig != null)
-                {
-                    string mapSourceFieldName = mappingConfig.SourceFieldName != null ? mappingConfig.SourceFieldName : destinationFieldName;
-                    sourceField = GetField(mapSourceFieldName);
-                }
-                else
-                {
-                    string mapSourceFieldName = destinationFieldName;
-                    sourceField = GetField(mapSourceFieldName);
-                }
-            }
-            else
-            {
-                string mapSourceFieldName = destinationFieldName;
-                sourceField = GetField(mapSourceFieldName);
-            }
-
-            return sourceField;
-        }
-
-        private void Initialize(SqlConnection connection)
+        public void Initialize(SqlConnection connection)
         {
             ReadFieldsSchema(connection);
         }
 
         private void ReadFieldsSchema(SqlConnection connection)
         {
-            string query = string.Format(DUMP_QUERY, _name);
+            string query = string.Format(DUMP_QUERY, Name);
             using (SqlDataAdapter adapter = new SqlDataAdapter(query, connection))
             {
                 List<string> primaryKeys = ReadPrimaryKeys(connection);
                 List<string> uniqueFields = ReadUniqueFields(connection);
 
-                DataTable table = new DataTable(_name);
+                DataTable table = new DataTable(Name);
                 DataColumnCollection columns = adapter.FillSchema(table, SchemaType.Mapped).Columns;
                 foreach (DataColumn column in columns)
                 {
@@ -157,10 +122,10 @@ namespace DatabaseMigration.DatabaseAccess
                                     FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
                                     WHERE OBJECTPROPERTY(OBJECT_ID(constraint_name), 'IsPrimaryKey') = 1
                                     AND table_name = '{0}'";
-            string getPKQuery = string.Format(getPKTemplate, _name);
+            string getPKQuery = string.Format(getPKTemplate, Name);
             using (SqlDataAdapter adapter = new SqlDataAdapter(getPKQuery, connection))
             {
-                DataTable table = new DataTable(_name);
+                DataTable table = new DataTable(Name);
                 adapter.Fill(table);
                 foreach (DataRow row in table.Rows)
                 {
@@ -183,7 +148,7 @@ namespace DatabaseMigration.DatabaseAccess
                                             WHERE   TC.constraint_type = 'Unique' AND CC.TABLE_NAME = '{0}'
                                             ORDER BY TC.Constraint_Name";
 
-            string getUniqueFieldsQuery = string.Format(getUniqueFieldsTemplate, _name);
+            string getUniqueFieldsQuery = string.Format(getUniqueFieldsTemplate, Name);
             using (SqlDataAdapter adapter = new SqlDataAdapter(getUniqueFieldsQuery, connection))
             {
                 DataTable table = new DataTable();
@@ -198,101 +163,101 @@ namespace DatabaseMigration.DatabaseAccess
             return result;
         }
 
-        #region Detect circle reference
+        //#region Detect circle reference
 
-        public List<string> GetCircleReferences()
-        {
-            return GetCircleReferences(new List<string>());
-        }
+        //public List<string> GetCircleReferences()
+        //{
+        //    return GetCircleReferences(new List<string>());
+        //}
 
-        private List<string> GetCircleReferences(List<string> tracking)
-        {
-            //bool result = false;
-            var result = new List<string>();
+        //private List<string> GetCircleReferences(List<string> tracking)
+        //{
+        //    //bool result = false;
+        //    var result = new List<string>();
 
-            // If we can not detect circle reference in this level
-            // Try to access deeper level (using recursion algorithm)
-            List<Reference> references = GetReferences();
-            List<string> listTableHasCheck = new List<string>();
-            listTableHasCheck.Add(Name);
-            foreach (Reference reference in references)
-            {
-                var response = GetCircleReferences(reference, listTableHasCheck, tracking);
-                if (response)
-                {
-                    // Add tracking if needed
-                    //if (tracking != null)
-                    //{
-                    //    tracking.Add(Name);
-                    //}
-                    tracking.ForEach(t => result.Add(t));
-                    break;
-                }
-            }
+        //    // If we can not detect circle reference in this level
+        //    // Try to access deeper level (using recursion algorithm)
+        //    List<Reference> references = GetReferences();
+        //    List<string> listTableHasCheck = new List<string>();
+        //    listTableHasCheck.Add(Name);
+        //    foreach (Reference reference in references)
+        //    {
+        //        var response = GetCircleReferences(reference, listTableHasCheck, tracking);
+        //        if (response)
+        //        {
+        //            // Add tracking if needed
+        //            //if (tracking != null)
+        //            //{
+        //            //    tracking.Add(Name);
+        //            //}
+        //            tracking.ForEach(t => result.Add(t));
+        //            break;
+        //        }
+        //    }
 
-            return result;
-        }
+        //    return result;
+        //}
 
-        private bool GetCircleReferences(Reference reference, List<string> listTableHasCheck, List<string> tracking)
-        {
-            // Initialize result
-            bool result = false;
+        //private bool GetCircleReferences(Reference reference, List<string> listTableHasCheck, List<string> tracking)
+        //{
+        //    // Initialize result
+        //    bool result = false;
 
-            // Check current reference
-            if (reference.ReferenceTableName.Equals(Name))
-            {
-                if (tracking != null)
-                {
-                    tracking.Add(Name);
-                }
-                result = true;
-            }
-            else
-            {
-                // Try to get referenced table
-                // And go deeper (using recursion algorithm)
-                Table referencedTable = _database.GetTable(reference.ReferenceTableName);
-                List<Reference> listReference = referencedTable.GetReferences();
-                listTableHasCheck.Add(referencedTable.Name);
-                foreach (Reference childReference in listReference)
-                {
-                    // Check
-                    if (childReference.ReferenceTableName.Equals(Name))
-                    {
-                        // Add to tracking list if needed
-                        if (tracking != null)
-                        {
-                            tracking.Add(referencedTable.Name);
-                        }
-                        result = true;
-                        break;
-                    }
+        //    // Check current reference
+        //    if (reference.ReferenceTableName.Equals(Name))
+        //    {
+        //        if (tracking != null)
+        //        {
+        //            tracking.Add(Name);
+        //        }
+        //        result = true;
+        //    }
+        //    else
+        //    {
+        //        // Try to get referenced table
+        //        // And go deeper (using recursion algorithm)
+        //        Table referencedTable = _database.GetTable(reference.ReferenceTableName);
+        //        List<Reference> listReference = referencedTable.GetReferences();
+        //        listTableHasCheck.Add(referencedTable.Name);
+        //        foreach (Reference childReference in listReference)
+        //        {
+        //            // Check
+        //            if (childReference.ReferenceTableName.Equals(Name))
+        //            {
+        //                // Add to tracking list if needed
+        //                if (tracking != null)
+        //                {
+        //                    tracking.Add(referencedTable.Name);
+        //                }
+        //                result = true;
+        //                break;
+        //            }
 
-                    // If referenced table is checked
-                    // We don't need to go further
-                    if (listTableHasCheck.Contains(childReference.ReferenceTableName))
-                    {
-                        continue;
-                    }
+        //            // If referenced table is checked
+        //            // We don't need to go further
+        //            if (listTableHasCheck.Contains(childReference.ReferenceTableName))
+        //            {
+        //                continue;
+        //            }
 
-                    // Else try to go deeper
-                    var response = this.GetCircleReferences(childReference, listTableHasCheck, tracking);
-                    if (response)
-                    {
-                        // Add to tracking list if needed
-                        //if (tracking != null)
-                        //{
-                        //    tracking.Add(referencedTable.Name);
-                        //}
-                        result = true;
-                        break;
-                    }
-                }
-            }
+        //            // Else try to go deeper
+        //            var response = this.GetCircleReferences(childReference, listTableHasCheck, tracking);
+        //            if (response)
+        //            {
+        //                // Add to tracking list if needed
+        //                //if (tracking != null)
+        //                //{
+        //                //    tracking.Add(referencedTable.Name);
+        //                //}
+        //                result = true;
+        //                break;
+        //            }
+        //        }
+        //    }
 
-            return result;
-        }
+        //    return result;
+        //}
 
-        #endregion
+        //#endregion
     }
 }

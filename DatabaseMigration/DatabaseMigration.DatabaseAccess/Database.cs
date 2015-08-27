@@ -11,13 +11,13 @@ using StringInject;
 
 namespace DatabaseMigration.DatabaseAccess
 {
-    public class Database
+    public abstract class Database<T> where T : Table, new()
     {
         #region Fields
 
         protected string ConnectionString;
         private string _name;
-        private List<Table> _tables;
+        private List<T> _tables;
 
         #endregion
 
@@ -28,9 +28,9 @@ namespace DatabaseMigration.DatabaseAccess
             get { return _name; }
         }
         
-        public List<Table> Tables
+        public List<T> Tables
         {
-            get { return _tables ?? (_tables = new List<Table>()); }
+            get { return _tables ?? (_tables = new List<T>()); }
         }
 
         #endregion
@@ -52,7 +52,7 @@ namespace DatabaseMigration.DatabaseAccess
             }
         }
 
-        public Table GetTable(string tableName)
+        public T GetTable(string tableName)
         {
             try
             {
@@ -65,27 +65,27 @@ namespace DatabaseMigration.DatabaseAccess
             }
         }
 
-        //public List<Table> GetCircleReferences()
+        //public List<T> GetCircleReferences()
         //{
         //    var result = Tables.Where(t => t.GetCircleReferences()).ToList();
         //    return result;
         //}
 
-        public List<KeyValuePair<string, List<string>>> GetCircleReferences()
-        {
-            var result = new List<KeyValuePair<string, List<string>>>();
+        //public List<KeyValuePair<string, List<string>>> GetCircleReferences()
+        //{
+        //    var result = new List<KeyValuePair<string, List<string>>>();
 
-            Tables.ForEach(t =>
-            {
-                var circleReferences = t.GetCircleReferences();
-                if(circleReferences.Any())
-                {
-                    result.Add(new KeyValuePair<string,List<string>>(t.Name, circleReferences));
-                }
-            });
+        //    Tables.ForEach(t =>
+        //    {
+        //        var circleReferences = t.GetCircleReferences();
+        //        if(circleReferences.Any())
+        //        {
+        //            result.Add(new KeyValuePair<string,List<string>>(t.Name, circleReferences));
+        //        }
+        //    });
 
-            return result;
-        }
+        //    return result;
+        //}
 
         private void ReadTablesSchema(SqlConnection connection)
         {
@@ -99,7 +99,8 @@ namespace DatabaseMigration.DatabaseAccess
 
                 if(type.Equals("BASE TABLE", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    Table table = new Table(catalog, schema, name, this, connection);
+                    T table = new T { DatabaseName = catalog, Name = name, Schema = schema };
+                    table.Initialize(connection);
                     Tables.Add(table);
                 }
             }
